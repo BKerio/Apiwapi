@@ -1,0 +1,306 @@
+// Push Notification Platform - Database Schema
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN // Full access, incl. operator/user management
+  ADMIN // Manage members/groups/campaigns + see everything
+  STAFF // Onboards members and sends campaigns
+}
+
+// Committee/leadership position a Member holds within one specific Group -
+// set on their GroupMembership row below. Optional; most memberships carry
+// no position at all.
+enum GroupPosition {
+  MODERATOR
+  VICE_MODERATOR
+  SECRETARY
+  VICE_SECRETARY
+  TREASURER
+}
+
+// Who a campaign was sent to.
+enum CampaignAudience {
+  ALL_MEMBERS
+  GROUP
+  SELECTED
+}
+
+// Lifecycle of a Campaign - SENDING while the dispatcher is still working
+// through the recipient list, then COMPLETED (at least one send succeeded)
+// or FAILED (every send failed, or the send couldn't start).
+enum CampaignStatus {
+  SENDING
+  COMPLETED
+  FAILED
+}
+
+// Per-recipient send outcome within a campaign.
+enum RecipientStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Platform a DeviceToken was registered from - informational only today, but
+// keeps the door open for platform-specific payload shaping later.
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User - an operator account (the people who sign into this platform to
+// onboard members and send campaigns). Not to be confused with Member below.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  phone        String?
+  role         Role     @default(STAFF)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  membersOnboarded   Member[]
+  campaignsCreated   Campaign[]
+  auditLogs          AuditLog[]
+  pushGatewaysEdited PushGateway[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Member - a push notification recipient onboarded by an admin/staff
+// operator, individually or via CSV import. The audience a campaign actually
+// sends to. `phone` is the key a device pairs itself against on check-in -
+// see DeviceToken below and modules/members/device-token.routes.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Member {
+  id    String  @id @default(uuid())
+  name  String
+  // Normalized MSISDN (e.g. "254712345678") - see modules/members/phone.ts.
+  phone String  @unique
+  email String?
+  notes String? @db.Text
+
+  // Opt-out flag - excluded from every future campaign once false, without
+  // losing their record or past delivery history.
+  isSubscribed Boolean @default(true) @map("is_subscribed")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  groupMemberships GroupMembership[]
+  campaignReceipts CampaignRecipient[]
+  deviceTokens     DeviceToken[]
+
+  @@index([createdById])
+  @@map("members")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DeviceToken - an FCM registration token linking one app install to the
+// Member it belongs to. Created by the app's phone-number check-in
+// (POST /public/device-tokens) once a matching Member already exists - not a
+// signup mechanism, just pairing a device to a record staff already created.
+// A Member can hold several (multiple phones); a token belongs to exactly one
+// Member at a time, reassigned on re-registration if it moves to another
+// member's phone.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DeviceToken {
+  id       String         @id @default(uuid())
+  token    String         @unique
+  platform DevicePlatform
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  campaignReceipts CampaignRecipient[]
+
+  @@index([memberId])
+  @@map("device_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Group - a named segment of members a campaign can target as one audience.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Group {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memberships GroupMembership[]
+  campaigns   Campaign[]
+
+  @@map("groups")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GroupMembership - join between Member and Group, carrying the member's
+// optional leadership position (see GroupPosition) within that one group.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model GroupMembership {
+  id       String         @id @default(uuid())
+  position GroupPosition?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  groupId String @map("group_id")
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, groupId])
+  @@index([groupId])
+  @@map("group_memberships")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Campaign - one push notification send. Recipients are snapshotted into
+// CampaignRecipient rows at creation time so the delivery log stays accurate
+// even if a Member, DeviceToken, or Group is later edited/deleted.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Campaign {
+  id       String           @id @default(uuid())
+  name     String
+  // The notification title.
+  title    String
+  // The notification body.
+  message  String           @db.Text
+  audience CampaignAudience
+
+  // Only set when audience = GROUP. groupNameSnapshot keeps the group's name
+  // readable in the campaign history even if the group is later renamed/deleted.
+  groupId           String? @map("group_id")
+  group             Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  groupNameSnapshot String? @map("group_name_snapshot")
+
+  status           CampaignStatus @default(SENDING)
+  totalRecipients  Int            @default(0) @map("total_recipients")
+  sentCount        Int            @default(0) @map("sent_count")
+  failedCount      Int            @default(0) @map("failed_count")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  recipients CampaignRecipient[]
+
+  @@index([status])
+  @@index([createdById])
+  @@map("campaigns")
+}
+
+// One row per device targeted per campaign - what was actually sent and
+// whether it succeeded. Snapshots name/phone/token so the log reads
+// correctly even if the underlying Member or DeviceToken is edited or
+// removed later. A member with multiple devices gets one row per device.
+model CampaignRecipient {
+  id     String          @id @default(uuid())
+  status RecipientStatus @default(PENDING)
+  error  String?
+  sentAt DateTime?       @map("sent_at")
+
+  phoneSnapshot       String @map("phone_snapshot")
+  nameSnapshot        String @map("name_snapshot")
+  deviceTokenSnapshot String @map("device_token_snapshot")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  memberId String? @map("member_id")
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  deviceTokenId String?      @map("device_token_id")
+  deviceToken   DeviceToken? @relation(fields: [deviceTokenId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([campaignId, status])
+  @@map("campaign_recipients")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PushGateway - single-row settings for the Firebase Cloud Messaging service
+// account campaigns send through (at most one row ever). Firebase
+// service-account JSON is encrypted at rest (AES-256-GCM, key derived from
+// JWT_SECRET - see shared/utils/crypto.ts). SUPER_ADMIN-gated - see
+// modules/settings/push-gateway.service.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PushGateway {
+  id       String  @id @default(uuid())
+  isActive Boolean @default(false) @map("is_active")
+
+  // Encrypted Firebase service-account JSON ({ serviceAccountJson }) - never
+  // stored or returned in plaintext outside the server process.
+  configEnc String @map("config_enc") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  updatedById String? @map("updated_by_id")
+  updatedBy   User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("push_gateways")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AuditLog
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String // CREATE, UPDATE, DELETE, LOGIN, LOGIN_FAILED
+  subjectType String   @map("subject_type") // USER, MEMBER, GROUP, CAMPAIGN, PUSH_GATEWAY
+  subjectId   String   @map("subject_id")
+  // Short human-readable line so the admin Audit Logs page never needs a
+  // per-subjectType join just to be readable - see modules/audit/audit-log.service.ts.
+  summary     String?
+  oldValues   Json?    @map("old_values")
+  newValues   Json?    @map("new_values")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([subjectType, subjectId])
+  @@map("audit_logs")
+}
