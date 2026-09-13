@@ -1,4 +1,4 @@
-# Push Notification Platform(APIWAPI Platform)
+# Push Notification Platform(APIWAPI Platform).
 
 An admin/staff operator onboards **Members** (individually or via CSV import), organizes them into **Groups**, and sends **push notification Campaigns** - targeted at all members, a group, or a hand-picked selection - with a live send progress view and a full audit trail. Members receive campaigns on their phone through the **soko** mobile app, which pairs itself to a Member record by phone number and registers for Firebase Cloud Messaging (FCM).
 
