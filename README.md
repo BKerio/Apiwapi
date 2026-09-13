@@ -1,18 +1,18 @@
 # Push Notification Platform
 
-An admin/staff operator onboards **Members** (individually or via CSV import), organizes them into **Groups**, and sends **push notification Campaigns** — targeted at all members, a group, or a hand-picked selection — with a live send progress view and a full audit trail. Members receive campaigns on their phone through the **soko** mobile app, which pairs itself to a Member record by phone number and registers for Firebase Cloud Messaging (FCM).
+An admin/staff operator onboards **Members** (individually or via CSV import), organizes them into **Groups**, and sends **push notification Campaigns** - targeted at all members, a group, or a hand-picked selection - with a live send progress view and a full audit trail. Members receive campaigns on their phone through the **soko** mobile app, which pairs itself to a Member record by phone number and registers for Firebase Cloud Messaging (FCM).
 
 Three parts:
 
-- **Backend:** [backend/](backend/) — Node.js + Express 5 + TypeScript, PostgreSQL via Prisma, JWT auth, Socket.io for live campaign progress, `firebase-admin` for sending push.
-- **Frontend (admin panel):** [frontend/](frontend/) — React 19 + TypeScript + Vite, Tailwind CSS, React Router, TanStack Query, Zustand.
-- **soko (mobile app):** [soko/](soko/) — Flutter + `firebase_messaging` + `flutter_local_notifications`. What Members install to actually receive campaigns.
+- **Backend:** [backend/](backend/) - Node.js + Express 5 + TypeScript, PostgreSQL via Prisma, JWT auth, Socket.io for live campaign progress, `firebase-admin` for sending push.
+- **Frontend (admin panel):** [frontend/](frontend/) - React 19 + TypeScript + Vite, Tailwind CSS, React Router, TanStack Query, Zustand.
+- **soko (mobile app):** [soko/](soko/) - Flutter + `firebase_messaging` + `flutter_local_notifications`. What Members install to actually receive campaigns.
 
 ## Features
 
 - **Member onboarding**: add members one at a time or bulk-import a CSV (`name`, `phone`, optional `email`/`groups`), with phone numbers normalized and duplicates skipped.
 - **Groups**: organize members into named segments to target a send at.
-- **Phone check-in (soko app)**: on first launch, a member types the phone number staff already onboarded them with; the app pairs its FCM device token to that `Member` record. No separate login/signup — the phone number *is* the pairing key.
+- **Phone check-in (soko app)**: on first launch, a member types the phone number staff already onboarded them with; the app pairs its FCM device token to that `Member` record. No separate login/signup - the phone number *is* the pairing key.
 - **Push campaigns**: compose a title + body, pick an audience (all members / a group / a selection), preview how many members are actually reachable (i.e. have the app installed) vs. just matching the audience, and send. Sends run in the background in batches through Firebase.
 - **Live delivery progress**: a campaign's detail page shows a live progress bar and a per-device delivery log (sent/failed/pending) over Socket.io, plus a "retry failed" action.
 - **Admin**: operator account management (Super Admin/Admin/Staff), org-wide audit log of every create/update/delete/login.
@@ -33,9 +33,9 @@ Three parts:
 
 ## Roles
 
-`SUPER_ADMIN`, `ADMIN`, `STAFF` — operator accounts that sign into the admin panel, enforced both by backend route guards (`requireRole`) and frontend route guards (`RoleGuard`). Operators manage everyone; `SUPER_ADMIN`/`ADMIN` additionally manage other operator accounts and the audit log. `SUPER_ADMIN` alone can edit the Firebase push gateway credentials.
+`SUPER_ADMIN`, `ADMIN`, `STAFF` - operator accounts that sign into the admin panel, enforced both by backend route guards (`requireRole`) and frontend route guards (`RoleGuard`). Operators manage everyone; `SUPER_ADMIN`/`ADMIN` additionally manage other operator accounts and the audit log. `SUPER_ADMIN` alone can edit the Firebase push gateway credentials.
 
-Not to be confused with **Members** (the push notification recipients), who never sign into anything — their only interaction is the soko app's one-time phone check-in.
+Not to be confused with **Members** (the push notification recipients), who never sign into anything - their only interaction is the soko app's one-time phone check-in.
 
 ## Project structure
 
@@ -67,13 +67,13 @@ soko/
 
 Defined in [backend/prisma/schema.prisma](backend/prisma/schema.prisma):
 
-- `User` — an operator account.
-- `Member` — a push notification recipient (name, normalized phone, optional email/notes, subscribed flag), onboarded by a `User`, belonging to zero or more `Group`s. `phone` is the key a soko install pairs itself against.
-- `DeviceToken` — an FCM registration token linking one soko install to the `Member` it belongs to. Created by the check-in flow; a member can hold several (multiple phones).
-- `Group` — a named member segment a campaign can target.
-- `Campaign` — one push send (name, title, body, audience type, recipient/sent/failed counts, status) + its `CampaignRecipient` rows, one per targeted device, snapshotting name/phone/token/status/error so the delivery log stays accurate even if the member or device token is later edited/removed.
-- `PushGateway` — the single row holding the encrypted Firebase service-account JSON campaigns send through, and whether it's active.
-- `AuditLog` — every create/update/delete/login across the system.
+- `User` - an operator account.
+- `Member` - a push notification recipient (name, normalized phone, optional email/notes, subscribed flag), onboarded by a `User`, belonging to zero or more `Group`s. `phone` is the key a soko install pairs itself against.
+- `DeviceToken` - an FCM registration token linking one soko install to the `Member` it belongs to. Created by the check-in flow; a member can hold several (multiple phones).
+- `Group` - a named member segment a campaign can target.
+- `Campaign` - one push send (name, title, body, audience type, recipient/sent/failed counts, status) + its `CampaignRecipient` rows, one per targeted device, snapshotting name/phone/token/status/error so the delivery log stays accurate even if the member or device token is later edited/removed.
+- `PushGateway` - the single row holding the encrypted Firebase service-account JSON campaigns send through, and whether it's active.
+- `AuditLog` - every create/update/delete/login across the system.
 
 ## API
 
@@ -94,7 +94,7 @@ All routes are mounted in [backend/src/app.ts](backend/src/app.ts). Base path is
 ### Prerequisites
 - Node.js 20+
 - A PostgreSQL database
-- A Firebase project with Cloud Messaging enabled — see **3. Set up Firebase** below for the full walkthrough; needed to actually send campaigns, everything else works without one
+- A Firebase project with Cloud Messaging enabled - see **3. Set up Firebase** below for the full walkthrough; needed to actually send campaigns, everything else works without one
 - Flutter SDK + an Android emulator (or a physical device on the same network) to run soko
 
 ### 1. Backend
@@ -108,7 +108,7 @@ npx prisma db push     # or migrate, once you have migrations
 npm run dev             # http://localhost:3000
 ```
 
-Required env vars: `DATABASE_URL`, `JWT_SECRET` — see [backend/.env.example](backend/.env.example). Firebase credentials are **not** an env var; they're pasted into the admin panel (step 3 below) and stored encrypted in the database.
+Required env vars: `DATABASE_URL`, `JWT_SECRET` - see [backend/.env.example](backend/.env.example). Firebase credentials are **not** an env var; they're pasted into the admin panel (step 3 below) and stored encrypted in the database.
 
 Seed a super admin + sample groups/members: `npx tsx prisma/seed.ts` (creates `admin@example.com` / `Admin@123!`).
 
@@ -123,11 +123,11 @@ npm run dev              # Vite dev server, http://localhost:5173
 
 ### 3. Set up Firebase
 
-This repo's soko app already ships configured for one Firebase project (`soko-b97c0` — `google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart` are all checked in). If you're just running this repo as-is, skip to **3d**. If you're forking this as a boilerplate for a **new** project, do all of 3a–3d against your own Firebase project.
+This repo's soko app already ships configured for one Firebase project (`soko-b97c0` - `google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart` are all checked in). If you're just running this repo as-is, skip to **3d**. If you're forking this as a boilerplate for a **new** project, do all of 3a–3d against your own Firebase project.
 
 **3a. Create the Firebase project and register your apps**
 1. [Firebase Console](https://console.firebase.google.com/) → **Add project** (or reuse an existing GCP project).
-2. Add an **Android app**: use the same package name as `applicationId` in [soko/android/app/build.gradle.kts](soko/android/app/build.gradle.kts) (currently the placeholder `com.example.soko` — change it to something real before you register). Download the generated `google-services.json` and drop it into `soko/android/app/`.
+2. Add an **Android app**: use the same package name as `applicationId` in [soko/android/app/build.gradle.kts](soko/android/app/build.gradle.kts) (currently the placeholder `com.example.soko` - change it to something real before you register). Download the generated `google-services.json` and drop it into `soko/android/app/`.
 3. Add an **iOS app** if you need iOS: use the bundle ID from the Xcode project. Download `GoogleService-Info.plist` into `soko/ios/Runner/`.
 4. Regenerate `soko/lib/firebase_options.dart` for your project - easiest via the [FlutterFire CLI](https://firebase.google.com/docs/flutter/setup): `dart pub global activate flutterfire_cli`, then `flutterfire configure` from `soko/`, picking your Firebase project and platforms.
 
