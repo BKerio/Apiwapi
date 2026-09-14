@@ -2,7 +2,7 @@
 
 An admin/staff operator onboards **Members** (individually or via CSV import), organizes them into **Groups**, and sends **push notification Campaigns** - targeted at all members, a group, or a hand-picked selection - with a live send progress view and a full audit trail. Members receive campaigns on their phone through the **soko** mobile app, which pairs itself to a Member record by phone number and registers for Firebase Cloud Messaging (FCM).
 
-Three parts:
+Three (3) parts:
 
 - **Backend:** [backend/](backend/) - Node.js + Express 5 + TypeScript, PostgreSQL via Prisma, JWT auth, Socket.io for live campaign progress, `firebase-admin` for sending push.
 - **Frontend (admin panel):** [frontend/](frontend/) - React 19 + TypeScript + Vite, Tailwind CSS, React Router, TanStack Query, Zustand.
