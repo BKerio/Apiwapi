@@ -85,7 +85,7 @@ class _StartupGateState extends State<StartupGate> {
         final alreadyRegistered = snapshot.data != null;
         return alreadyRegistered
             ? const MyHomePage(title: 'Flutter Demo Home Page')
-            : const PhoneEntryPage();hhh
+            : const PhoneEntryPage();
       },
     );
   }
