@@ -31,6 +31,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -84,7 +85,7 @@ class _StartupGateState extends State<StartupGate> {
         }
         final alreadyRegistered = snapshot.data != null;
         return alreadyRegistered
-            ? const MyHomePage(title: 'Flutter Demo Home Page')
+            ? const MyHomePage(title: 'Flutter Push Notifications Demo')
             : const PhoneEntryPage();
       },
     );
