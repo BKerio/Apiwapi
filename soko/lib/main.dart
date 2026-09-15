@@ -85,7 +85,7 @@ class _StartupGateState extends State<StartupGate> {
         }
         final alreadyRegistered = snapshot.data != null;
         return alreadyRegistered
-            ? const MyHomePage(title: 'Push Notifications Demo')
+            ? const MyHomePage(title: 'Flutter Push Notifications Demo')
             : const PhoneEntryPage();
       },
     );
